@@ -228,7 +228,7 @@ class Bagel(PreTrainedModel):
 
         return dict(mse=mse, ce=ce)
 
-
+    # Prepare data
     def prepare_prompts(self, curr_kvlens, curr_rope, prompts, tokenizer, new_token_ids):
         packed_text_ids = list()
         packed_text_position_ids = list()
@@ -241,10 +241,11 @@ class Bagel(PreTrainedModel):
         for prompt, curr_kvlen, curr_position_id in zip(prompts, curr_kvlens, curr_rope):
             packed_key_value_indexes.extend(range(curr, curr + curr_kvlen))
             curr += curr_kvlen
-
-            text_ids = tokenizer.encode(prompt)
-            text_ids = [new_token_ids['bos_token_id']] + text_ids + [new_token_ids['eos_token_id']]
-            text_token_lens.append(len(text_ids))
+            # Tokenization
+            text_ids = tokenizer.encode(prompt) 
+            text_ids = [new_token_ids['bos_token_id']] + text_ids + [new_token_ids['eos_token_id']] 
+            text_token_lens.append(len(text_ids)) 
+            # Token index and position
             packed_text_ids.extend(text_ids)
             packed_text_position_ids.extend(range(curr_position_id, curr_position_id + len(text_ids)))
             packed_text_indexes.extend(range(curr, curr + len(text_ids)))
@@ -262,7 +263,8 @@ class Bagel(PreTrainedModel):
         }
 
         return generation_input, newlens, new_rope
-
+    # TExt Prefill stage
+    # cache-prefill
     @torch.no_grad
     def forward_cache_update_text(
         self,
@@ -279,7 +281,7 @@ class Bagel(PreTrainedModel):
         extra_inputs = {}
         if self.use_moe:
             extra_inputs = {"mode": "und"}
-
+        # Forward inference
         output = self.language_model.forward_inference(
             packed_query_sequence=packed_text_embedding,
             query_lens=text_token_lens,
@@ -905,7 +907,8 @@ class Bagel(PreTrainedModel):
             pass
 
         return v_t
-
+    
+    # Autoregressive 1
     def prepare_start_tokens(self, curr_kvlens, curr_rope, new_token_ids):
         packed_start_tokens, packed_key_value_indexes = list(), list()
         packed_query_position_ids = list()
@@ -998,7 +1001,8 @@ class Bagel(PreTrainedModel):
 
         output_device = generated_sequence[0].device
         return torch.stack([i.to(output_device) for i in generated_sequence], dim=0)
-
+    # Autoregressive 1 End
+    
     # for evaluation
     @torch.no_grad()
     def chat(

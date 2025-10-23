@@ -1,12 +1,17 @@
 # Copyright 2025 Bytedance Ltd. and/or its affiliates.
 # SPDX-License-Identifier: Apache-2.0
 
+conda init
+conda activate /hdd/yuke/fanjiang/conda_env/bagel
 set -x
-
+cd /scr/dataset/yuke/fanjiang/repo/unified-model/Bagel
 export OPENAI_API_KEY=$openai_api_key
+export PYTHONPATH=/scr/dataset/yuke/fanjiang/repo/unified-model/Bagel:$PYTHONPATH
 
 GPUS=8
-
+model_path="/scr/dataset/yuke/fanjiang/repo/unified-model/Bagel/models/BAGEL-7B-MoT"
+output_path="/scr/dataset/yuke/fanjiang/repo/unified-model/Bagel/results/wise_gen"
+# export CUDA_VISIBLE_DEVICES=6
 
 # generate images
 torchrun \
@@ -17,28 +22,28 @@ torchrun \
     --master_port=12345 \
     ./eval/gen/gen_images_mp_wise.py \
     --output_dir $output_path/images \
-    --metadata-file ./eval/gen/wise/final_data.json \
+    --metadata_file ./eval/gen/wise/final_data.json \
     --resolution 1024 \
-    --max-latent_size 64 \
+    --max_latent_size 64 \
     --model-path $model_path \
     --think
 
 
-# calculate score
-python3 eval/gen/wise/gpt_eval_mp.py \
-        --json_path eval/gen/wise/data/cultural_common_sense.json \
-        --image_dir $output_path/images \
-        --output_dir $output_path
+# # calculate score
+# python3 eval/gen/wise/gpt_eval_mp.py \
+#         --json_path eval/gen/wise/data/cultural_common_sense.json \
+#         --image_dir $output_path/images \
+#         --output_dir $output_path
 
-python3 eval/gen/wise/gpt_eval_mp.py \
-        --json_path eval/gen/wise/data/spatio-temporal_reasoning.json \
-        --image_dir $output_path/images \
-        --output_dir $output_path
+# python3 eval/gen/wise/gpt_eval_mp.py \
+#         --json_path eval/gen/wise/data/spatio-temporal_reasoning.json \
+#         --image_dir $output_path/images \
+#         --output_dir $output_path
 
-python3 eval/gen/wise/gpt_eval_mp.py \
-        --json_path eval/gen/wise/data/natural_science.json \
-        --image_dir $output_path/images \
-        --output_dir $output_path
+# python3 eval/gen/wise/gpt_eval_mp.py \
+#         --json_path eval/gen/wise/data/natural_science.json \
+#         --image_dir $output_path/images \
+#         --output_dir $output_path
 
-python3 eval/gen/wise/cal_score.py \
-        --output_dir $output_path
+# python3 eval/gen/wise/cal_score.py \
+#         --output_dir $output_path

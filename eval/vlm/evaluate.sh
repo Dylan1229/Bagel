@@ -45,9 +45,9 @@ fi
 
 if [ ${DATASET} == "mmbench-dev-en" ]; then
     torchrun \
-      --nnodes=$ARNOLD_WORKER_NUM \
-      --node_rank=$ARNOLD_ID \
-      --master_addr=$ARNOLD_WORKER_0_HOST \
+      --nnodes=1 \
+      --node_rank=0 \
+      --master_addr=localhost \
       --nproc_per_node=${GPUS} \
       --master_port=${MASTER_PORT} \
       -m eval.vlm.eval.mmbench.evaluate_mmbench --datasets mmbench_dev_20230712 "${ARGS[@]:1}"

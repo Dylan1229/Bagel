@@ -7,12 +7,12 @@ if [ $# -lt 2 ]; then
     exit 1
 fi
 
-LOG_PATH=$1
+LOG_PATH=$1 # output path
 if [ ! -d "$LOG_PATH" ]; then
     mkdir -p "$LOG_PATH"
 fi
-shift 1
-ARGS=("$@")
+shift 1 # remove the first argument
+ARGS=("$@") # Remaining: model path
 export MASTER_PORT=10042
 
 FULL_MODEL_PATH="$PREFIX_DIR/$MODEL_PATH"
