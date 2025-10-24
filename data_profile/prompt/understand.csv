@@ -1,0 +1,6 @@
+prompt,image
+"Explain why this meme might be considered funny and what cultural or visual elements contribute to its humor.","./data_profile/images/meme.jpg" 
+"Describe the octopus in detail and explain what clues suggest its environment or natural habitat.","./data_profile/images/octupusy.jpg"
+"Analyze the scene with the women—what are they doing, and what emotions or social context can you infer from their appearance and body language?","./data_profile/images/women.jpg"
+"Describe the layout and atmosphere of this room and explain what kind of person might live here based on the details you observe.","./data_profile/images/room.jpg"
+"Interpret the interaction between the dog and cat in this image—what are they doing, and what might make the scene amusing or unusual?","./data_profile/images/bike.jpg"
