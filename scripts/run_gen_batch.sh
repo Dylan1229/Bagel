@@ -12,7 +12,7 @@ timestamp=$(date +%Y%m%d_%H%M%S)
 LOGFILE="./scripts/logs/run_gen_batch_${timestamp}.log"
 
 exec >"$LOGFILE" 2>&1
-  python ./scripts/inference_batch/image_gen_batch.py \
+  python ./scripts/inference/image_gen_batch.py \
     --model_path ./models/BAGEL-7B-MoT \
     --prompt_pth ./data_profile/prompt/text2image.csv \
     --output ./results/image_gen \
