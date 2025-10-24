@@ -146,7 +146,7 @@ def main():
     # Initialize inferencer
     inferencer = InterleaveInferencer(
         model=model, 
-        vae_model=nv, 
+        vae_model=vae_model, 
         tokenizer=tokenizer, 
         vae_transform=vae_transform, 
         vit_transform=vit_transform, 
