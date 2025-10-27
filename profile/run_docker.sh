@@ -15,7 +15,11 @@ fi
 echo "Using GPUs: $GPU_ARG"
 
 docker run --gpus $GPU_ARG -it --rm \
-  --shm-size=16g \
+  --cap-add=SYS_ADMIN \
+  --cap-add=SYS_PTRACE \
+  --cap-add=PERFMON \
+  --security-opt seccomp=unconfined \
+  --shm-size=64g \
   -v /scr/dataset/yuke/fanjiang/repo/unified-model/Bagel:/workspace/Bagel \
   -w /workspace/Bagel \
   bagel-profile:latest \

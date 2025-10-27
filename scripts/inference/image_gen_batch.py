@@ -163,8 +163,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default="./results/image_gen", help="Directory to store edited images and optional texts.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
     parser.add_argument("--max_mem_per_gpu", default="80GiB", help="Max memory per GPU for dispatch.")
-    parser.add_argument("--think", default=True, help="Enable think mode before image generation.")
-    parser.add_argument("--do_sample", default=False, help="Enable sampling during text decoding.")
+    parser.add_argument("--think", action="store_true", default=False, help="Enable think mode before image generation.")
+    parser.add_argument("--do_sample", action="store_true", default=False, help="Enable sampling during text decoding.")
     parser.add_argument("--max_think_token_n", type=int, default=1000, help="Maximum number of thinking tokens.")
     parser.add_argument("--cfg_text_scale", type=float, default=4.0)
     parser.add_argument("--cfg_img_scale", type=float, default=1.0)
@@ -221,14 +221,14 @@ def main() -> None:
 
     output_dir = Path(args.output).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-
+    
+    torch.cuda.nvtx.range_push("Model Loading")
     model, vae_model, tokenizer, vae_transform, vit_transform, new_token_ids = load_model(
         args.model_path,
         max_mem_per_gpu=args.max_mem_per_gpu,
     )
     torch.cuda.nvtx.range_pop()
 
-    # Initialize inferencer with NVTX marker
     torch.cuda.nvtx.range_push("Inferencer Init")
     inferencer = InterleaveInferencer(
         model=model, 

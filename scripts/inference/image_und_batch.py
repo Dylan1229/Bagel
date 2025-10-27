@@ -2,6 +2,7 @@ import argparse
 import csv
 import os
 import random
+import re
 import sys
 from pathlib import Path
 from typing import List, Tuple
@@ -30,6 +31,23 @@ from modeling.bagel import (  # noqa: E402
     SiglipVisionModel,
 )
 from modeling.qwen2 import Qwen2Tokenizer  # noqa: E402
+
+
+def sanitize_filename(text: str, max_length: int = 50) -> str:
+    """Convert text to a safe filename prefix"""
+    # Remove or replace invalid filename characters
+    text = re.sub(r'[<>:"/\\|?*\x00-\x1f]', '', text)
+    # Replace spaces and multiple whitespaces with underscore
+    text = re.sub(r'\s+', '_', text.strip())
+    # Remove leading/trailing dots and underscores
+    text = text.strip('._')
+    # Limit length
+    if len(text) > max_length:
+        text = text[:max_length].rstrip('._')
+    # Ensure it's not empty
+    if not text:
+        text = "prompt"
+    return text
 
 
 def setup_seed(seed: int = 42) -> None:
@@ -131,7 +149,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output", default="./results/image_edit", help="Directory to store edited images and optional texts.")
     parser.add_argument("--seed", type=int, default=42, help="Random seed for reproducibility.")
     parser.add_argument("--max_mem_per_gpu", default="80GiB", help="Max memory per GPU for dispatch.")
-    parser.add_argument("--do_sample", default=True, help="Enable sampling during text decoding.")
+    parser.add_argument("--think", action="store_true", default=False, help="Enable think mode before image generation.")
+    parser.add_argument("--do_sample", action="store_true", default=False, help="Enable sampling during text decoding.")
     parser.add_argument("--temperature", type=float, default=1.0, help="Sampling temperature if do_sample is set.")
     parser.add_argument("--max_think_token_n", type=int, default=1000, help="Maximum number of thinking tokens.")
     return parser.parse_args()
@@ -177,11 +196,14 @@ def main() -> None:
     output_dir = Path(args.output).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    torch.cuda.nvtx.range_push("Model Loading")
     model, vae_model, tokenizer, vae_transform, vit_transform, new_token_ids = load_model(
         args.model_path,
         max_mem_per_gpu=args.max_mem_per_gpu,
     )
+    torch.cuda.nvtx.range_pop()
 
+    torch.cuda.nvtx.range_push("Inferencer Init")
     inferencer = InterleaveInferencer(
         model=model,
         vae_model=vae_model,
@@ -190,6 +212,7 @@ def main() -> None:
         vit_transform=vit_transform,
         new_token_ids=new_token_ids,
     )
+    torch.cuda.nvtx.range_pop()
 
     inference_hyper = dict(
         max_think_token_n=args.max_think_token_n,
@@ -212,8 +235,13 @@ def main() -> None:
         if not text_output:
             print(f"Warning: no textual output produced for row {idx}")
             continue
-        current_date_str = datetime.now().strftime("%Y%m%d")
-        text_out_path = output_dir / f"{current_date_str}_understanding_{idx:04d}.txt"
+        
+        # Generate unique filename using prompt prefix and timestamp
+        prompt_prefix = sanitize_filename(prompt)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")[:-3]  # microseconds to milliseconds
+        filename_base = f"{prompt_prefix}_{timestamp}"
+        
+        text_out_path = output_dir / f"{filename_base}.txt"
         text_out_path.write_text(text_output, encoding="utf-8")
         print(f"Saved text output to {text_out_path}")
 

@@ -135,7 +135,6 @@ def main():
     # Model path
     model_path = "./models/BAGEL-7B-MoT"
 
-    # Load model with NVTX marker
     torch.cuda.nvtx.range_push("Model Loading")
     model, vae_model, tokenizer, vae_transform, vit_transform, new_token_ids = load_model(
         model_path, 

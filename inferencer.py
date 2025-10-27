@@ -69,6 +69,7 @@ class InterleaveInferencer:
 
         if vae:
             ## update vae
+            torch.cuda.nvtx.range_push("vae_encoding")
             generation_input, kv_lens, ropes = self.model.prepare_vae_images(
                 curr_kvlens=kv_lens,
                 curr_rope=ropes, 
@@ -77,9 +78,10 @@ class InterleaveInferencer:
                 new_token_ids=self.new_token_ids,
             )
             past_key_values = self.model.forward_cache_update_vae(self.vae_model, past_key_values, **generation_input)
-        
+            torch.cuda.nvtx.range_pop()
         if vit:
             ## update vit
+            torch.cuda.nvtx.range_push("vit_encoding")
             generation_input, kv_lens, ropes = self.model.prepare_vit_images(
                 curr_kvlens=kv_lens,
                 curr_rope=ropes, 
@@ -88,7 +90,7 @@ class InterleaveInferencer:
                 new_token_ids=self.new_token_ids,
             )
             past_key_values = self.model.forward_cache_update_vit(past_key_values, **generation_input)
-
+            torch.cuda.nvtx.range_pop()
         gen_context['kv_lens'] = kv_lens
         gen_context['ropes'] = ropes
         gen_context['past_key_values'] = past_key_values
@@ -114,7 +116,7 @@ class InterleaveInferencer:
         enable_taylorseer=False,
     ):
         # print(cfg_renorm_type)
-        torch.cuda.nvtx.range_push("Prepare Latent & CFG")
+        # torch.cuda.nvtx.range_push("Prepare Latent & CFG")
         past_key_values = gen_context['past_key_values']
         kv_lens = gen_context['kv_lens']
         ropes = gen_context['ropes']
@@ -144,8 +146,7 @@ class InterleaveInferencer:
             curr_rope=ropes_cfg, 
             image_sizes=[image_shape], 
         )
-        torch.cuda.nvtx.range_pop()
-
+        # torch.cuda.nvtx.range_pop()
         torch.cuda.nvtx.range_push("Diffusion Process")
         unpacked_latent = self.model.generate_image(
             past_key_values=past_key_values,
@@ -170,7 +171,6 @@ class InterleaveInferencer:
             enable_taylorseer=enable_taylorseer,
         )
         torch.cuda.nvtx.range_pop()
-
         torch.cuda.nvtx.range_push("VAE Decode")
         image = self.decode_image(unpacked_latent[0], image_shape)
         torch.cuda.nvtx.range_pop()
@@ -239,7 +239,7 @@ class InterleaveInferencer:
         with torch.autocast(device_type="cuda", enabled=True, dtype=torch.bfloat16):
 
             if think:
-                torch.cuda.nvtx.range_push("System Prompt Processing")
+                torch.cuda.nvtx.range_push("Text prefill of system prompt (thinking mode)")
                 if understanding_output:
                     system_prompt = VLM_THINK_SYSTEM_PROMPT 
                 else:
@@ -251,7 +251,7 @@ class InterleaveInferencer:
             for input_term in input_lists:
 
                 if isinstance(input_term, str):
-                    torch.cuda.nvtx.range_push("User Prompt Processing")
+                    torch.cuda.nvtx.range_push("Text prefill of input text")
                     cfg_text_context = deepcopy(gen_context)
                     gen_context = self.update_context_text(input_term, gen_context)
                     cfg_img_context = self.update_context_text(input_term, cfg_img_context)
@@ -269,20 +269,25 @@ class InterleaveInferencer:
                     raise ValueError(f"Unsupported input type: {type(input_term)}")
 
             if understanding_output:
-                torch.cuda.nvtx.range_push("Text Generation (Understanding)")
+                torch.cuda.nvtx.range_push("Text Decoding (Image Understanding Task)")
                 gen_text = self.gen_text(gen_context, do_sample=do_sample, temperature=text_temperature, max_length=max_think_token_n)
                 output_list.append(gen_text)
                 torch.cuda.nvtx.range_pop()
 
             else:
                 if think:
-                    torch.cuda.nvtx.range_push("Text Generation (Thinking)")
+                    torch.cuda.nvtx.range_push("Text Decoding (Thinking Mode in T2I Gen)")
                     gen_text = self.gen_text(gen_context, do_sample=do_sample, temperature=text_temperature, max_length=max_think_token_n)
-                    gen_context = self.update_context_text(gen_text, gen_context)
-                    output_list.append(gen_text)
                     torch.cuda.nvtx.range_pop()
 
-                torch.cuda.nvtx.range_push("Image Generation (Diffusion)")
+                    torch.cuda.nvtx.range_push("Text Prefill Again (Thinking Mode in T2I Gen)")
+                    gen_context = self.update_context_text(gen_text, gen_context)
+                    torch.cuda.nvtx.range_pop()
+
+                    output_list.append(gen_text)
+
+
+                torch.cuda.nvtx.range_push("Image Generation")
                 img = self.gen_image(
                     image_shapes, 
                     gen_context, 
